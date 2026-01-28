@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Android-Style Phone Emulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body {
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .phone {
+      width: 360px;
+      height: 640px;
+      background: #000;
+      border-radius: 30px;
+      border: 4px solid #333;
+      overflow: hidden;
+      color: #fff;
+      position: relative;
+      box-shadow: 0 0 20px rgba(0,0,0,0.7);
+    }
+
+    .status-bar {
+      height: 24px;
+      background: linear-gradient(to right, #222, #333);
+      display: flex;
+      justify-content: space-between;
+      padding: 0 8px;
+      font-size: 11px;
+      align-items: center;
+      cursor: pointer;
+      z-index: 3;
+      position: relative;
+    }
+
+    .screen {
+      height: calc(100% - 24px);
+      position: relative;
+      background: radial-gradient(circle at top, #333, #000);
+      overflow: hidden;
+    }
+
+    .notification-shade {
+      position: absolute;
+      top: -200px;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: rgba(20,20,20,0.98);
+      border-bottom: 1px solid #444;
+      padding: 10px;
+      z-index: 2;
+      transition: transform 0.25s ease-out;
+      transform: translateY(0);
+    }
+    .notification-shade.visible {
+      transform: translateY(200px);
+    }
+    .notification-title {
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: #ccc;
+    }
+    .notification-item {
+      background: #222;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .lock-screen,
+    .home-screen,
+    .app-screen {
+      position: absolute;
+      inset: 0;
+      padding: 20px;
+      opacity: 0;
+      transform: scale(1.03);
+      pointer-events: none;
+      transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    }
+    .active {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .lock-time {
+      font-size: 48px;
+      text-align: center;
+      margin-top: 40px;
+      font-weight: 300;
+    }
+    .lock-date {
+      text-align: center;
+      margin-top: 8px;
+      color: #ccc;
+      font-size: 14px;
+    }
+    .lock-panel {
+      margin-top: 40px;
+      text-align: center;
+    }
+    .lock-panel input {
+      width: 80%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 20px;
+      border: none;
+      text-align: center;
+      font-size: 16px;
+    }
+    .lock-message {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #ffb74d;
+      min-height: 16px;
+    }
+    .forgot-btn {
+      margin-top: 10px;
+      background: none;
+      border: none;
+      color: #64b5f6;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .forgot-panel {
+      margin-top: 16px;
+      background: rgba(20,20,20,0.95);
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 12px;
+      display: none;
+    }
+    .forgot-panel h4 {
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .forgot-panel input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .forgot-panel button {
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #1e88e5;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .forgot-panel .forgot-info {
+      margin-top: 4px;
+      min-height: 14px;
+      color: #ffb74d;
+    }
+
+    .home-screen {
+      background: linear-gradient(to bottom, #263238, #000);
+    }
+    .home-greeting {
+      font-size: 24px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .home-row {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 30px;
+      flex-wrap: wrap;
+      row-gap: 20px;
+    }
+    .app-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: #37474f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      text-align: center;
+      padding: 4px;
+      cursor: pointer;
+      color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    }
+    .app-icon:active {
+      transform: scale(0.95);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+    .browser { background: #1e88e5; }
+    .notes { background: #8e24aa; }
+    .calc { background: #43a047; }
+    .settings { background: #fb8c00; }
+    .messages { background: #00c853; }
+    .camera { background: #546e7a; }
+    .gallery { background: #ff5252; }
+    .playstore { background: #00bcd4; }
+
+    .dock {
+      position: absolute;
+      bottom: 16px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+    }
+    .dock .app-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 28px;
+      background: #263238;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .app-header h2 {
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .back-btn {
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #444;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .app-body {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .notes-textarea {
+      width: 100%;
+      height: 420px;
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      border: 1px solid #555;
+      padding: 8px;
+      resize: none;
+      font-size: 14px;
+    }
+
+    .browser-url {
+      width: 100%;
+      padding: 6px;
+      border-radius: 16px;
+      border: 1px solid #555;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .browser-frame {
+      width: 100%;
+      height: 420px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #000;
+    }
+
+    .calc-display {
+      width: 100%;
+      height: 60px;
+      background: #111;
+      border-radius: 8px;
+      border: 1px solid #555;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 10px;
+      font-size: 24px;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .calc-btn {
+      padding: 14px;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .calc-btn.op { background: #1e88e5; }
+    .calc-btn.eq { background: #43a047; }
+    .calc-btn.clear { background: #e53935; }
+
+    .message-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+    .message-bubble {
+      padding: 8px 10px;
+      border-radius: 16px;
+      max-width: 80%;
+      font-size: 13px;
+    }
+    .message-bubble.me {
+      background: #00c853;
+      align-self: flex-end;
+    }
+    .message-bubble.them {
+      background: #424242;
+      align-self: flex-start;
+    }
+    .message-input-row {
+      display: flex;
+      margin-top: 8px;
+      gap: 6px;
+    }
+    .message-input-row input {
+      flex: 1;
+      padding: 6px 8px;
+      border-radius: 16px;
+      border: 1px solid #555;
+      background: #111;
+      color: #fff;
+      font-size: 13px;
+    }
+    .message-input-row button {
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #00c853;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .contact-create {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 13px;
+    }
+    .contact-create input {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #111;
+      color: #fff;
+      font-size: 13px;
+    }
+    .contact-create button {
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #1e88e5;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      align-self: flex-start;
+    }
+
+    .camera-view {
+      width: 100%;
+      height: 420px;
+      border-radius: 16px;
+      background: radial-gradient(circle at center, #555, #000);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ddd;
+      font-size: 16px;
+      position: relative;
+    }
+    .camera-shutter {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 4px solid #fff;
+      margin: 16px auto 0;
+      cursor: pointer;
+      position: relative;
+    }
+    .camera-shutter::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      background: #fff;
+      opacity: 0.1;
+    }
+    .camera-flash {
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease-out;
+    }
+    .camera-flash.flash {
+      opacity: 0.9;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      max-height: 430px;
+      overflow-y: auto;
+    }
+    .gallery-item {
+      width: 100%;
+      padding-top: 100%;
+      border-radius: 8px;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .store-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 430px;
+      overflow-y: auto;
+    }
+    .store-item {
+      background: #111;
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid #444;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .store-item button {
+      padding: 4px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #00bcd4;
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    /* Settings tabs */
+    .settings-tabs {
+      display: flex;
+      border-bottom: 1px solid #444;
+      margin-bottom: 8px;
+    }
+    .settings-tab {
+      flex: 1;
+      text-align: center;
+      padding: 6px 0;
+      font-size: 13px;
+      cursor: pointer;
+      background: #222;
+    }
+    .settings-tab.active {
+      background: #424242;
+      font-weight: 500;
+    }
+    .settings-section {
+      display: none;
+      font-size: 13px;
+    }
+    .settings-section.active {
+      display: block;
+    }
+    .settings-section p {
+      margin-bottom: 6px;
+    }
+    .settings-btn {
+      padding: 6px 10px;
+      border-radius: 16px;
+      border: none;
+      background: #1e88e5;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      margin: 4px 0;
+    }
+    .settings-status {
+      margin: 6px 0;
+      font-size: 12px;
+      color: #ffb74d;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="status-bar" id="statusBar">
+      <div id="status-time">--:--</div>
+      <div>LTE ▴▴▴ ▢</div>
+    </div>
+
+    <div class="screen">
+      <div class="notification-shade" id="notificationShade">
+        <div class="notification-title">Notifications</div>
+        <div class="notification-item">New message from Alex</div>
+        <div class="notification-item">Play Store: 3 updates available</div>
+        <div class="notification-item">Battery 85%</div>
+      </div>
+
+      <div class="lock-screen active" id="lockScreen">
+        <div class="lock-time" id="lockTime">--:--</div>
+        <div class="lock-date" id="lockDate">Loading...</div>
+
+        <div class="lock-panel">
+          <input type="text" id="usernameInput" placeholder="Username" />
+          <input type="password" id="pinInput" placeholder="PIN" />
+          <div class="lock-message" id="lockMessage"></div>
+          <button class="forgot-btn" id="forgotBtn">Forgot your PIN?</button>
+
+          <div class="forgot-panel" id="forgotPanel">
+            <h4 id="forgotTitle">Reset PIN</h4>
+            <div id="forgotCreateMaster" style="display:none;">
+              <p style="margin-bottom:4px;">Create a master PIN to manage resets.</p>
+              <input type="password" id="masterNew" placeholder="New master PIN" />
+              <input type="password" id="masterNewConfirm" placeholder="Confirm master PIN" />
+              <button id="createMasterBtn">Create Master PIN</button>
+            </div>
+
+            <div id="forgotResetPin" style="display:none;">
+              <input type="text" id="forgotUsername" placeholder="Username" />
+              <input type="password" id="forgotMasterPin" placeholder="Master PIN" />
+              <input type="password" id="forgotNewPin" placeholder="New PIN" />
+              <input type="password" id="forgotNewPinConfirm" placeholder="Confirm new PIN" />
+              <button id="resetPinBtn">Reset PIN</button>
+            </div>
+
+            <div class="forgot-info" id="forgotInfo"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-screen" id="homeScreen">
+        <div class="home-greeting" id="homeGreeting">Welcome</div>
+
+        <div class="home-row">
+          <div class="app-icon browser" data-app="browser">Browser</div>
+          <div class="app-icon notes" data-app="notes">Notes</div>
+          <div class="app-icon calc" data-app="calc">Calculator</div>
+          <div class="app-icon messages" data-app="messages">Messages</div>
+          <div class="app-icon camera" data-app="camera">Camera</div>
+          <div class="app-icon gallery" data-app="gallery">Gallery</div>
+          <div class="app-icon playstore" data-app="playstore">Play Store</div>
+          <div class="app-icon settings" data-app="settings">Settings</div>
+        </div>
+
+        <div class="dock">
+          <div class="app-icon messages" data-app="messages">Chat</div>
+          <div class="app-icon browser" data-app="browser">Web</div>
+          <div class="app-icon camera" data-app="camera">Cam</div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="browserApp">
+        <div class="app-header">
+          <h2>Browser</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <input
+            type="text"
+            class="browser-url"
+            id="browserUrl"
+            placeholder="Type a URL (e.g. example.com) and press Enter"
+          />
+          <iframe class="browser-frame" id="browserFrame"></iframe>
+        </div>
+      </div>
+
+      <div class="app-screen" id="notesApp">
+        <div class="app-header">
+          <h2>Notes</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <textarea
+            class="notes-textarea"
+            id="notesTextarea"
+            placeholder="Your notes (saved per user)"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="app-screen" id="calcApp">
+        <div class="app-header">
+          <h2>Calculator</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="calc-display" id="calcDisplay">0</div>
+          <div class="calc-grid">
+            <button class="calc-btn clear">C</button>
+            <button class="calc-btn op">/</button>
+            <button class="calc-btn op">*</button>
+            <button class="calc-btn op">-</button>
+
+            <button class="calc-btn">7</button>
+            <button class="calc-btn">8</button>
+            <button class="calc-btn">9</button>
+            <button class="calc-btn op">+</button>
+
+            <button class="calc-btn">4</button>
+            <button class="calc-btn">5</button>
+            <button class="calc-btn">6</button>
+            <button class="calc-btn eq">=</button>
+
+            <button class="calc-btn">1</button>
+            <button class="calc-btn">2</button>
+            <button class="calc-btn">3</button>
+            <button class="calc-btn">0</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="messagesApp">
+        <div class="app-header">
+          <h2>Messages</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="contact-create">
+            <input id="newContactName" placeholder="Contact name" />
+            <input id="newContactPin" placeholder="Contact PIN" />
+            <button id="addContactBtn">Add Contact</button>
+            <div id="contactMessage" style="font-size:12px;color:#ffb74d;margin-top:4px;"></div>
+          </div>
+
+          <select id="contactSelect" style="margin:10px 0;width:100%;padding:6px;border-radius:8px;">
+          </select>
+
+          <div class="message-list" id="messageList"></div>
+
+          <div class="message-input-row">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="messageSendBtn">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="cameraApp">
+        <div class="app-header">
+          <h2>Camera</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="camera-view">
+            <div>Camera preview (mock)</div>
+            <div class="camera-flash" id="cameraFlash"></div>
+          </div>
+          <div class="camera-shutter" id="cameraShutter"></div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="galleryApp">
+        <div class="app-header">
+          <h2>Gallery</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="gallery-grid" id="galleryGrid"></div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="playstoreApp">
+        <div class="app-header">
+          <h2>Play Store</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="store-list" id="storeList"></div>
+        </div>
+      </div>
+
+      <div class="app-screen" id="settingsApp">
+        <div class="app-header">
+          <h2>Settings</h2>
+          <button class="back-btn" data-back>Home</button>
+        </div>
+        <div class="app-body">
+          <div class="settings-tabs">
+            <div class="settings-tab active" data-tab="general">General</div>
+            <div class="settings-tab" data-tab="security">Security &amp; Recovery</div>
+          </div>
+
+          <div class="settings-section active" id="settingsGeneral">
+            <p>Current user: <span id="settingsUser">None</span></p>
+            <p>Theme: Dark (placeholder)</p>
+            <p>Notifications: Enabled (placeholder)</p>
+            <p>About phone: HTML Emulator v1.0</p>
+          </div>
+
+          <div class="settings-section" id="settingsSecurity">
+            <p class="settings-status" id="masterStatus">Master PIN Status: Not set</p>
+            <button class="settings-btn" id="createOrChangeMasterBtn">Create / Change Master PIN</button>
+            <button class="settings-btn" id="deleteMasterBtn">Delete Master PIN</button>
+            <p style="margin-top:8px;font-weight:500;">Recovery Instructions</p>
+            <p style="font-size:12px;line-height:1.4;">
+              The master PIN lets you reset any user's PIN from the lock screen using "Forgot your PIN?".<br>
+              Keep it secret. If you delete it, you'll need to create a new one before resetting PINs again.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+function updateTime() {
+  const now = new Date();
+  const t = now.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+  document.getElementById("lockTime").textContent = t;
+  document.getElementById("status-time").textContent = t;
+  document.getElementById("lockDate").textContent = now.toDateString();
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+function loadUsers() {
+  return JSON.parse(localStorage.getItem("users") || "{}");
+}
+function saveUsers(u) {
+  localStorage.setItem("users", JSON.stringify(u));
+}
+
+function loadMessages() {
+  return JSON.parse(localStorage.getItem("messages") || "{}");
+}
+function saveMessages(m) {
+  localStorage.setItem("messages", JSON.stringify(m));
+}
+
+function getMasterPin() {
+  return localStorage.getItem("masterPin") || null;
+}
+function setMasterPin(pin) {
+  localStorage.setItem("masterPin", pin);
+}
+function clearMasterPin() {
+  localStorage.removeItem("masterPin");
+}
+
+const screens = {
+  lock: document.getElementById("lockScreen"),
+  home: document.getElementById("homeScreen"),
+  browser: document.getElementById("browserApp"),
+  notes: document.getElementById("notesApp"),
+  calc: document.getElementById("calcApp"),
+  messages: document.getElementById("messagesApp"),
+  camera: document.getElementById("cameraApp"),
+  gallery: document.getElementById("galleryApp"),
+  playstore: document.getElementById("playstoreApp"),
+  settings: document.getElementById("settingsApp")
+};
+
+let currentScreen = "lock";
+
+function showScreen(name) {
+  if (currentScreen === name) return;
+  Object.values(screens).forEach(s => s.classList.remove("active"));
+  screens[name].classList.add("active");
+  currentScreen = name;
+}
+
+const usernameInput = document.getElementById("usernameInput");
+const pinInput = document.getElementById("pinInput");
+const lockMessage = document.getElementById("lockMessage");
+const homeGreeting = document.getElementById("homeGreeting");
+const settingsUser = document.getElementById("settingsUser");
+
+pinInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") unlock();
+});
+
+function findUserByPin(pin) {
+  const users = loadUsers();
+  for (const username in users) {
+    if (users[username].pin === pin) return username;
+  }
+  return null;
+}
+
+function unlock() {
+  const user = usernameInput.value.trim();
+  const pin = pinInput.value.trim();
+  if (!user || !pin) {
+    lockMessage.textContent = "Enter username + PIN";
+    return;
+  }
+
+  const users = loadUsers();
+
+  if (!users[user]) {
+    users[user] = { pin, notes: "", contacts: [] };
+    saveUsers(users);
+    enterHome(user);
+    return;
+  }
+
+  if (users[user].pin === pin) {
+    enterHome(user);
+  } else {
+    lockMessage.textContent = "Incorrect PIN";
+  }
+}
+
+function enterHome(user) {
+  localStorage.setItem("currentUser", user);
+  homeGreeting.textContent = "Welcome, " + user;
+  settingsUser.textContent = user;
+  pinInput.value = "";
+  lockMessage.textContent = "";
+  loadNotes();
+  loadContacts();
+  updateMasterStatus();
+  showScreen("home");
+}
+
+/* Forgot PIN / Master PIN UI */
+const forgotBtn = document.getElementById("forgotBtn");
+const forgotPanel = document.getElementById("forgotPanel");
+const forgotTitle = document.getElementById("forgotTitle");
+const forgotInfo = document.getElementById("forgotInfo");
+const forgotCreateMaster = document.getElementById("forgotCreateMaster");
+const forgotResetPin = document.getElementById("forgotResetPin");
+
+const masterNew = document.getElementById("masterNew");
+const masterNewConfirm = document.getElementById("masterNewConfirm");
+const createMasterBtn = document.getElementById("createMasterBtn");
+
+const forgotUsername = document.getElementById("forgotUsername");
+const forgotMasterPin = document.getElementById("forgotMasterPin");
+const forgotNewPin = document.getElementById("forgotNewPin");
+const forgotNewPinConfirm = document.getElementById("forgotNewPinConfirm");
+const resetPinBtn = document.getElementById("resetPinBtn");
+
+forgotBtn.addEventListener("click", () => {
+  const visible = forgotPanel.style.display === "block";
+  if (visible) {
+    forgotPanel.style.display = "none";
+    forgotInfo.textContent = "";
+    return;
+  }
+  forgotPanel.style.display = "block";
+  const master = getMasterPin();
+  if (!master) {
+    forgotTitle.textContent = "Create Master PIN";
+    forgotCreateMaster.style.display = "block";
+    forgotResetPin.style.display = "none";
+    forgotInfo.textContent = "No master PIN set. Create one to manage PIN resets.";
+  } else {
+    forgotTitle.textContent = "Reset PIN with Master PIN";
+    forgotCreateMaster.style.display = "none";
+    forgotResetPin.style.display = "block";
+    forgotInfo.textContent = "";
+  }
+});
+
+createMasterBtn.addEventListener("click", () => {
+  const p1 = masterNew.value.trim();
+  const p2 = masterNewConfirm.value.trim();
+  if (!p1 || !p2) {
+    forgotInfo.textContent = "Enter and confirm the master PIN.";
+    return;
+  }
+  if (p1 !== p2) {
+    forgotInfo.textContent = "Master PINs do not match.";
+    return;
+  }
+  setMasterPin(p1);
+  masterNew.value = "";
+  masterNewConfirm.value = "";
+  forgotInfo.textContent = "Master PIN created. You can now reset user PINs.";
+  updateMasterStatus();
+  forgotTitle.textContent = "Reset PIN with Master PIN";
+  forgotCreateMaster.style.display = "none";
+  forgotResetPin.style.display = "block";
+});
+
+resetPinBtn.addEventListener("click", () => {
+  const user = forgotUsername.value.trim();
+  const master = forgotMasterPin.value.trim();
+  const newPin = forgotNewPin.value.trim();
+  const newPin2 = forgotNewPinConfirm.value.trim();
+
+  if (!user || !master || !newPin || !newPin2) {
+    forgotInfo.textContent = "Fill in all fields.";
+    return;
+  }
+  const storedMaster = getMasterPin();
+  if (!storedMaster) {
+    forgotInfo.textContent = "No master PIN set.";
+    return;
+  }
+  if (master !== storedMaster) {
+    forgotInfo.textContent = "Incorrect master PIN.";
+    return;
+  }
+  if (newPin !== newPin2) {
+    forgotInfo.textContent = "New PINs do not match.";
+    return;
+  }
+
+  const users = loadUsers();
+  if (!users[user]) {
+    forgotInfo.textContent = "No such username.";
+    return;
+  }
+
+  users[user].pin = newPin;
+  saveUsers(users);
+  forgotInfo.textContent = "PIN reset successfully.";
+  forgotMasterPin.value = "";
+  forgotNewPin.value = "";
+  forgotNewPinConfirm.value = "";
+});
+
+/* Apps open/close */
+document.querySelectorAll(".app-icon").forEach(icon => {
+  icon.addEventListener("click", () => {
+    const app = icon.getAttribute("data-app");
+    if (!localStorage.getItem("currentUser")) {
+      showScreen("lock");
+      lockMessage.textContent = "Unlock with your PIN first.";
+      return;
+    }
+    if (app === "browser") showScreen("browser");
+    if (app === "notes") showScreen("notes");
+    if (app === "calc") showScreen("calc");
+    if (app === "messages") {
+  loadContacts();
+
+  // If no contacts exist, clear the message list safely
+  if (!contactSelect.value) {
+    messageList.innerHTML = "";
+  } else {
+    renderConversation();
+  }
+
+  showScreen("messages");
+}
+    if (app === "camera") showScreen("camera");
+    if (app === "gallery") showScreen("gallery");
+    if (app === "playstore") showScreen("playstore");
+    if (app === "settings") {
+      updateMasterStatus();
+      showScreen("settings");
+    }
+  });
+});
+
+document.querySelectorAll("[data-back]").forEach(btn => {
+  btn.addEventListener("click", () => showScreen("home"));
+});
+
+/* Notes */
+const notesTextarea = document.getElementById("notesTextarea");
+function loadNotes() {
+  const user = localStorage.getItem("currentUser");
+  if (!user) return;
+  const users = loadUsers();
+  const data = users[user];
+  notesTextarea.value = (data && data.notes) || "";
+}
+notesTextarea.addEventListener("input", () => {
+  const user = localStorage.getItem("currentUser");
+  if (!user) return;
+  const users = loadUsers();
+  if (!users[user]) return;
+  users[user].notes = notesTextarea.value;
+  saveUsers(users);
+});
+
+/* Browser */
+const browserUrl = document.getElementById("browserUrl");
+const browserFrame = document.getElementById("browserFrame");
+browserUrl.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    let url = browserUrl.value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    browserFrame.src = url;
+  }
+});
+
+/* Calculator */
+let calcExpression = "";
+const calcDisplay = document.getElementById("calcDisplay");
+document.querySelectorAll("#calcApp .calc-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const text = btn.textContent;
+    if (btn.classList.contains("clear")) {
+      calcExpression = "";
+      calcDisplay.textContent = "0";
+      return;
+    }
+    if (btn.classList.contains("eq")) {
+      try {
+        if (!/^[0-9+\-*/. ]*$/.test(calcExpression)) {
+          calcExpression = "Error";
+        } else {
+          const result = eval(calcExpression || "0");
+          calcExpression = String(result);
+        }
+      } catch {
+        calcExpression = "Error";
+      }
+      calcDisplay.textContent = calcExpression;
+      return;
+    }
+    calcExpression += text;
+    calcDisplay.textContent = calcExpression || "0";
+  });
+});
+
+/* Messages + contacts */
+const messageList = document.getElementById("messageList");
+const messageInput = document.getElementById("messageInput");
+const messageSendBtn = document.getElementById("messageSendBtn");
+
+const newContactName = document.getElementById("newContactName");
+const newContactPin = document.getElementById("newContactPin");
+const addContactBtn = document.getElementById("addContactBtn");
+const contactMessage = document.getElementById("contactMessage");
+const contactSelect = document.getElementById("contactSelect");
+
+function loadContacts() {
+  const user = localStorage.getItem("currentUser");
+  if (!user) return;
+  const users = loadUsers();
+  const data = users[user];
+  if (!data.contacts) data.contacts = [];
+  contactSelect.innerHTML = "";
+  data.contacts.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c.username || "";
+    opt.textContent = c.name + " (" + c.pin + ")";
+    contactSelect.appendChild(opt);
+  });
+}
+
+addContactBtn.addEventListener("click", () => {
+  const name = newContactName.value.trim();
+  const pin = newContactPin.value.trim();
+
+  if (!name || !pin) {
+    contactMessage.textContent = "Enter name + PIN";
+    return;
+  }
+
+  const targetUsername = findUserByPin(pin);
+  if (!targetUsername) {
+    contactMessage.textContent = "No user exists with that PIN";
+    return;
+  }
+
+  const current = localStorage.getItem("currentUser");
+  const users = loadUsers();
+  const data = users[current];
+  if (!data.contacts) data.contacts = [];
+
+  const exists = data.contacts.some(c => c.username === targetUsername);
+  if (exists) {
+    contactMessage.textContent = "Contact already exists";
+    return;
+  }
+
+  data.contacts.push({ name, pin, username: targetUsername });
+  saveUsers(users);
+
+  contactMessage.textContent = "Contact added!";
+  newContactName.value = "";
+  newContactPin.value = "";
+
+  loadContacts();
+});
+
+function renderConversation() {
+  const user = localStorage.getItem("currentUser");
+const other = contactSelect.value;
+
+// Always clear the list
+messageList.innerHTML = "";
+
+// If no contact selected, stop safely
+if (!user || !other) return;
+  const messages = loadMessages();
+  if (!messages[user] || !messages[user][other]) return;
+  messages[user][other].forEach(m => {
+    const div = document.createElement("div");
+    div.className = "message-bubble " + (m.from === user ? "me" : "them");
+    div.textContent = m.text;
+    messageList.appendChild(div);
+  });
+  messageList.scrollTop = messageList.scrollHeight;
+}
+
+contactSelect.addEventListener("change", renderConversation);
+
+function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text) return;
+  const sender = localStorage.getItem("currentUser");
+  const receiver = contactSelect.value;
+  if (!receiver) return;
+
+  const messages = loadMessages();
+  if (!messages[sender]) messages[sender] = {};
+  if (!messages[receiver]) messages[receiver] = {};
+  if (!messages[sender][receiver]) messages[sender][receiver] = [];
+  if (!messages[receiver][sender]) messages[receiver][sender] = [];
+
+  const msg = { text, from: sender, to: receiver, time: Date.now() };
+  messages[sender][receiver].push(msg);
+  messages[receiver][sender].push(msg);
+  saveMessages(messages);
+
+  messageInput.value = "";
+  renderConversation();
+}
+
+messageSendBtn.addEventListener("click", sendMessage);
+messageInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+/* Camera */
+const cameraFlash = document.getElementById("cameraFlash");
+const cameraShutter = document.getElementById("cameraShutter");
+cameraShutter.addEventListener("click", () => {
+  cameraFlash.classList.add("flash");
+  setTimeout(() => cameraFlash.classList.remove("flash"), 150);
+});
+
+/* Gallery */
+const galleryGrid = document.getElementById("galleryGrid");
+const galleryColors = ["#ff5252","#ffca28","#66bb6a","#42a5f5","#ab47bc","#ff7043","#26c6da","#ec407a","#8d6e63"];
+galleryColors.forEach(c => {
+  const div = document.createElement("div");
+  div.className = "gallery-item";
+  div.style.background = c;
+  galleryGrid.appendChild(div);
+});
+
+/* Play Store */
+const storeList = document.getElementById("storeList");
+const fakeApps = [
+  { name: "Super Chat", desc: "Fast messaging app" },
+  { name: "Pixel Camera", desc: "Pro photo tools" },
+  { name: "Retro Games", desc: "Classic arcade fun" },
+  { name: "Study Buddy", desc: "Homework organizer" },
+  { name: "Music Wave", desc: "Stream your favorite songs" }
+];
+fakeApps.forEach(app => {
+  const row = document.createElement("div");
+  row.className = "store-item";
+  const info = document.createElement("div");
+  info.innerHTML = `<strong>${app.name}</strong><br><span style="color:#aaa;">${app.desc}</span>`;
+  const btn = document.createElement("button");
+  btn.textContent = "Install";
+  btn.addEventListener("click", () => {
+    btn.textContent = "Installed";
+    btn.style.background = "#4caf50";
+  });
+  row.appendChild(info);
+  row.appendChild(btn);
+  storeList.appendChild(row);
+});
+
+/* Notification shade */
+const statusBar = document.getElementById("statusBar");
+const notificationShade = document.getElementById("notificationShade");
+let shadeVisible = false;
+statusBar.addEventListener("click", () => {
+  shadeVisible = !shadeVisible;
+  if (shadeVisible) {
+    notificationShade.classList.add("visible");
+  } else {
+    notificationShade.classList.remove("visible");
+  }
+});
+
+/* Settings tabs + Security & Recovery */
+const settingsTabs = document.querySelectorAll(".settings-tab");
+const settingsGeneral = document.getElementById("settingsGeneral");
+const settingsSecurity = document.getElementById("settingsSecurity");
+const masterStatus = document.getElementById("masterStatus");
+const createOrChangeMasterBtn = document.getElementById("createOrChangeMasterBtn");
+const deleteMasterBtn = document.getElementById("deleteMasterBtn");
+
+settingsTabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    settingsTabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    const which = tab.getAttribute("data-tab");
+    if (which === "general") {
+      settingsGeneral.classList.add("active");
+      settingsSecurity.classList.remove("active");
+    } else {
+      settingsSecurity.classList.add("active");
+      settingsGeneral.classList.remove("active");
+      updateMasterStatus();
+    }
+  });
+});
+
+function updateMasterStatus() {
+  const master = getMasterPin();
+  if (master) {
+    masterStatus.textContent = "Master PIN Status: Set";
+  } else {
+    masterStatus.textContent = "Master PIN Status: Not set";
+  }
+}
+
+createOrChangeMasterBtn.addEventListener("click", () => {
+  const current = getMasterPin();
+  if (!current) {
+    const p1 = prompt("Create new master PIN:");
+    if (!p1) return;
+    const p2 = prompt("Confirm new master PIN:");
+    if (p1 !== p2) {
+      alert("Master PINs do not match.");
+      return;
+    }
+    setMasterPin(p1);
+    alert("Master PIN created.");
+    updateMasterStatus();
+  } else {
+    const old = prompt("Enter current master PIN:");
+    if (!old) return;
+    if (old !== current) {
+      alert("Incorrect master PIN.");
+      return;
+    }
+    const p1 = prompt("Enter new master PIN:");
+    if (!p1) return;
+    const p2 = prompt("Confirm new master PIN:");
+    if (p1 !== p2) {
+      alert("Master PINs do not match.");
+      return;
+    }
+    setMasterPin(p1);
+    alert("Master PIN changed.");
+    updateMasterStatus();
+  }
+});
+
+deleteMasterBtn.addEventListener("click", () => {
+  const current = getMasterPin();
+  if (!current) {
+    alert("No master PIN set.");
+    return;
+  }
+  const confirmPin = prompt("Enter current master PIN to delete it:");
+  if (!confirmPin) return;
+  if (confirmPin !== current) {
+    alert("Incorrect master PIN.");
+    return;
+  }
+  if (!confirm("Are you sure you want to delete the master PIN?")) return;
+  clearMasterPin();
+  alert("Master PIN deleted.");
+  updateMasterStatus();
+});
+
+/* Init */
+(function init() {
+  const currentUser = localStorage.getItem("currentUser");
+  if (currentUser) {
+    usernameInput.value = currentUser;
+    homeGreeting.textContent = "Welcome, " + currentUser;
+    settingsUser.textContent = currentUser;
+  }
+  updateMasterStatus();
+  showScreen("lock");
+})();
+</script>
+</body>
+</html>
