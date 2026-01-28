@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Drink Maker Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #222;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #333;
+      padding: 20px 25px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+      max-width: 400px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border-radius: 5px;
+      border: none;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 15px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      background: #ff9800;
+      color: #222;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #ffa726;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      background: #444;
+      min-height: 40px;
+    }
+
+    .result-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #bbb;
+      margin-top: 5px;
+    }
+
+    .inventory {
+  margin-top: 25px;
+  padding: 15px;
+  background: #2a2a2a;
+  border-radius: 10px;
+}
+
+.inventory h2 {
+  margin-top: 0;
+  color: #ffcc80;
+}
+
+.inventory-item {
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #3a3a3a;
+  border-radius: 6px;
+  border-left: 5px solid #555;
+}
+
+.inventory-item strong {
+  color: #fff;
+}
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Drink Maker</h1>
+
+    <div class="inventory">
+  <h2>Your Drink Inventory</h2>
+
+    <label for="drink1">First drink</label>
+    <input id="drink1" type="text" placeholder="e.g. Orange Juice" />
+
+    <label for="drink2">Second drink</label>
+    <input id="drink2" type="text" placeholder="e.g. Cola" />
+
+    <label for="drinkType">Type of drink you want</label>
+    <input id="drinkType" type="text" placeholder="e.g. Fizzy, Smoothie, Mocktail" />
+
+    <button id="mixButton">Mix Drinks</button>
+
+    <div class="result" id="resultBox">
+      <div class="result-title">Your creation will appear here!</div>
+      <div id="resultText"></div>
+    </div>
+
+    <div class="hint">
+      Tip: Try fun combos like "Lemonade" + "Iced Tea" as a "Summer drink".
+    </div>
+  </div>
+
+  <div class="inventory">
+  <h2>Your Drink Inventory</h2>
+  <div id="inventoryList">No drinks saved yet.</div>
+</div>
+
+ <script>
+  const drink1Input = document.getElementById('drink1');
+  const drink2Input = document.getElementById('drink2');
+  const drinkTypeInput = document.getElementById('drinkType');
+  const mixButton = document.getElementById('mixButton');
+  const resultText = document.getElementById('resultText');
+  const inventoryList = document.getElementById('inventoryList');
+
+  // Animation container
+  const animationBox = document.createElement("div");
+  animationBox.style.height = "120px";
+  animationBox.style.marginTop = "10px";
+  animationBox.style.display = "flex";
+  animationBox.style.justifyContent = "center";
+  animationBox.style.alignItems = "center";
+  document.getElementById("resultBox").prepend(animationBox);
+
+  const bottleFrames = [
+    "🍾", "🍾", "🍾", "🍾",
+    "💧", "💧💧", "💧💧💧",
+    "💧💧", "💧",
+    "✨ MIXING ✨"
+  ];
+
+  const rarityLevels = [
+    { name: "Common", color: "#9e9e9e" },
+    { name: "Uncommon", color: "#4caf50" },
+    { name: "Rare", color: "#2196f3" },
+    { name: "Epic", color: "#9c27b0" },
+    { name: "Legendary", color: "#ff9800" }
+  ];
+
+  const namePartsA = [
+    "Fusion", "Twister", "Splash", "Storm", "Breeze", "Fizz",
+    "Blend", "Burst", "Wave", "Rush", "Spark", "Glow"
+  ];
+
+  const namePartsB = [
+    "Delight", "Mix", "Craze", "Potion", "Elixir", "Surge",
+    "Dream", "Shock", "Charm", "Pulse", "Spirit", "Vibe"
+  ];
+
+  const flavorHints = [
+    "Sunset", "Midnight", "Citrus", "Velvet", "Electric",
+    "Tropical", "Crystal", "Mystic", "Golden", "Frost"
+  ];
+
+  function seedFromString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash * 31 + str.charCodeAt(i)) % 99999;
+    }
+    return hash;
+  }
+
+  function generateUniqueDrinkName(drink1, drink2) {
+    const seed = seedFromString(drink1 + drink2);
+    const partA = namePartsA[seed % namePartsA.length];
+    const partB = namePartsB[(seed >> 3) % namePartsB.length];
+    const hint = flavorHints[(seed >> 2) % flavorHints.length];
+    return `${hint} ${partA} ${partB}`;
+  }
+
+  function getRarity(drink1, drink2) {
+    const seed = seedFromString(drink1 + drink2);
+    return rarityLevels[seed % rarityLevels.length];
+  }
+
+  function randomRating() {
+    const ratings = [
+      "Amazing!",
+      "Pretty good!",
+      "Interesting...",
+      "Not bad at all!",
+      "Surprisingly tasty!",
+      "Maybe an acquired taste.",
+      "Legendary combo!"
+    ];
+    return ratings[Math.floor(Math.random() * ratings.length)];
+  }
+
+  function randomColor() {
+    const colors = ["#ffeb3b", "#ff5722", "#4caf50", "#03a9f4", "#e91e63", "#9c27b0"];
+    return colors[Math.floor(Math.random() * colors.length)];
+  }
+
+  function saveDrink(drinkObj) {
+    const saved = JSON.parse(localStorage.getItem("drinkHistory") || "[]");
+    saved.push(drinkObj);
+    localStorage.setItem("drinkHistory", JSON.stringify(saved));
+    loadInventory();
+  }
+
+  function loadInventory() {
+    const saved = JSON.parse(localStorage.getItem("drinkHistory") || "[]");
+
+    if (saved.length === 0) {
+      inventoryList.textContent = "No drinks saved yet.";
+      return;
+    }
+
+    inventoryList.innerHTML = "";
+
+    saved.forEach(drink => {
+      const item = document.createElement("div");
+      item.className = "inventory-item";
+      item.style.borderLeftColor = drink.color;
+
+      item.innerHTML = `
+        <strong>${drink.name}</strong><br/>
+        <span style="color:${drink.color}">${drink.rarity}</span><br/>
+        <small>${drink.drink1} + ${drink.drink2} (${drink.drinkType})</small>
+      `;
+
+      inventoryList.appendChild(item);
+    });
+  }
+
+  function playBottleAnimation(callback) {
+    let frame = 0;
+    animationBox.textContent = "";
+
+    const interval = setInterval(() => {
+      animationBox.textContent = bottleFrames[frame];
+      frame++;
+
+      if (frame >= bottleFrames.length) {
+        clearInterval(interval);
+        callback();
+      }
+    }, 150);
+  }
+
+  mixButton.addEventListener('click', () => {
+    const drink1 = drink1Input.value.trim();
+    const drink2 = drink2Input.value.trim();
+    const drinkType = drinkTypeInput.value.trim();
+
+    if (!drink1 || !drink2 || !drinkType) {
+      resultText.textContent = "Please fill in all three fields to mix your drink.";
+      return;
+    }
+
+    playBottleAnimation(() => {
+      const uniqueName = generateUniqueDrinkName(drink1, drink2);
+      const rating = randomRating();
+      const color = randomColor();
+      const rarity = getRarity(drink1, drink2);
+
+      saveDrink({
+        name: uniqueName,
+        drink1,
+        drink2,
+        drinkType,
+        rarity: rarity.name,
+        color,
+        rating
+      });
+
+      resultText.innerHTML = `
+        Unique drink name: <strong>${uniqueName}</strong><br/>
+        Rarity: <strong style="color:${rarity.color}">${rarity.name}</strong><br/>
+        Taste rating: <strong>${rating}</strong><br/>
+        Drink color vibe: <span style="color:${color}; font-weight:bold;">${color}</span><br/><br/>
+        <em>Your drink has been added to your inventory!</em>
+      `;
+    });
+  });
+
+  // Load inventory on page start
+  loadInventory();
+</script>
+</body>
+</html>
